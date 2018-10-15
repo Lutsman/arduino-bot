@@ -4,13 +4,18 @@
 #define RX 10
 #define TX 11
 
-SoftwareSerial Esp826Serial(RX, TX);
+SoftwareSerial EspSerial(RX, TX);
 
 // motor variables
 int motor_L1, motor_L2, input_L;
 int motor_R1, motor_R2, input_R;
 
-
+// start symbols
+char startS[] = "$!";
+int direction = 5;
+int speedL = 150;
+int speedR = 150;
+bool speedToggler = 0;
 
 void setup()
 {
@@ -18,7 +23,7 @@ void setup()
   setspeed(0, 0);
 
   Serial.begin(9600);
-  Esp826Serial.begin(9600);
+  EspSerial.begin(9600);
 
   Serial.println("gate arduino start");
   Serial.println("");
@@ -26,48 +31,93 @@ void setup()
 // Основная программа.
 void loop()
 {
-  if (Esp826Serial.available()) {
-    // char data[Esp826Serial.available()];
-    // data = Esp826Serial.read();
-    // Serial.write(Esp826Serial.read());
-    // Serial.write(data);
-    // Serial.println(Esp826Serial.readString());
-    getDataFromSerial(Esp826Serial);
+  while (EspSerial.available()) {
+   if (EspSerial.read() == startS[0]) {
+       Serial.println("transmission stage 1");
+       if (EspSerial.read() == startS[1]) {
+          Serial.println("transmission start");
+          int command = EspSerial.parseInt();
+
+          switch (command) {
+            case 1:
+              int x = EspSerial.parseInt();
+              int y = EspSerial.parseInt();
+              int newDirection = getDirection(x, y);
+
+              if (newDirection == direction) break;
+
+              move(newDirection);
+              break;
+            case 2:
+              int newSpeed = EspSerial.parseInt();
+
+              if (!speedToggler) break;
+
+              speedL = speedR = newSpeed;
+              move(direction);
+              break;
+            case 3:
+              speedToggler = EspSerial.parseInt();
+              break;
+          }
+       } 
+   }
   }
 }
 
-void getDataFromSerial(SoftwareSerial serial) {
-  char dataStart[] = "$$DATA_START$$";
-  char dataEnd[] = "$$DATA_END$$";
-  int start = -1;
-  int end = -1;
+void move(int newDirection) {
+  _stop();
+  setspeed();
+  direction = newDirection;
+  Serial.println(newDirection);
 
-  String dataStr = serial.readStringUntil('/n');
-  // Serial.print("$$DATA_START$$");
-  start = dataStr.indexOf(dataStart);
-  
-  if (start > -1) {
-    end = dataStr.indexOf(dataEnd);
-
-    dataStr = dataStr.substring(start + sizeof(dataStart), end);
-
-    Serial.println(dataStr);
-  }  
-}
-
-int * getValuesFromSerial(SoftwareSerial serial) {
-  static int arr[5];
-
-  for (int i = 0; i < 5; i++) {
-    if (serial.available()) {
-      arr[i] = serial.parseInt();
-      if (serial.read() == '/n') break;
-    } else {
-      arr[i] = NULL;
-    }
+  switch(newDirection) {
+    case 8:
+      forward();
+      Serial.println("forward");
+      break;
+    case 6:
+      forward_right();
+      Serial.println("forward_right");
+      break;
+    case 2:
+      backward();
+      Serial.println("backward");
+      break;
+    case 4:
+      forward_left();
+      Serial.println("forward_left");
+      break;
+    case 5:
+      _stop();
+      Serial.println("stop");
+      break;
+    default:
+      _stop();
+      Serial.println("stop");
+      break;
   }
 }
 
+int getDirection(int x, int y) {
+  if (y > 900) {
+    return 8;
+  }
+
+  if (y < 124) {
+    return 2;
+  }
+
+  if (x > 900) {
+    return 6;
+  }
+
+  if (x < 124) {
+    return 4;
+  }
+
+  return 5;
+}
 
 // Функция инициализации управления моторами.
 void setup_motor_system(int L1, int  L2, int  R1, int R2, int iL, int iR)
@@ -90,6 +140,13 @@ void setspeed(int LeftSpeed, int RightSpeed)
   // Задает ширину положительного фронта от 0 до 255.
   analogWrite(input_L, LeftSpeed);
   analogWrite(input_R, RightSpeed);
+  // Чем больше, тем интенсивнее работает мотор.
+}
+void setspeed()
+{
+  // Задает ширину положительного фронта от 0 до 255.
+  analogWrite(input_L, speedL);
+  analogWrite(input_R, speedR);
   // Чем больше, тем интенсивнее работает мотор.
 }
 // движение вперед.
@@ -127,32 +184,32 @@ void backward()
 {
     // Смена направления вращения двигателей.
     digitalWrite(motor_L2, HIGH);
-    digitalWrite(motor_L1,LOW);
+    digitalWrite(motor_L1, LOW);
     digitalWrite(motor_R2, HIGH);
-    digitalWrite(motor_R1,LOW);
+    digitalWrite(motor_R1, LOW);
 }
 
 void backward_right()
 {
     digitalWrite(motor_L2, LOW);
-    digitalWrite(motor_L1,LOW);
+    digitalWrite(motor_L1, LOW);
     digitalWrite(motor_R2, HIGH);
-    digitalWrite(motor_R1,LOW);
+    digitalWrite(motor_R1, LOW);
 }
 
 void backward_left()
 {
     digitalWrite(motor_L2, HIGH);
-    digitalWrite(motor_L1,LOW);
+    digitalWrite(motor_L1, LOW);
     digitalWrite(motor_R2, LOW);
-    digitalWrite(motor_R1,LOW);
+    digitalWrite(motor_R1, LOW);
 }
 
 void _stop()
 {
     // Блокировка всех колес.
     digitalWrite(motor_L2, LOW);
-    digitalWrite(motor_L1,LOW);
+    digitalWrite(motor_L1, LOW);
     digitalWrite(motor_R2, LOW);
-    digitalWrite(motor_R1,LOW);
+    digitalWrite(motor_R1, LOW);
 }
