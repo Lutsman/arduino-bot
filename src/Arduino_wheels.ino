@@ -13,8 +13,8 @@ int motor_R1, motor_R2, input_R;
 // start symbols
 char startS[] = "$!";
 int direction = 5;
-int speedL = 150;
-int speedR = 150;
+int speedL = 255;
+int speedR = 255;
 bool speedToggler = 0;
 
 void setup()
@@ -77,16 +77,16 @@ void move(int newDirection) {
       Serial.println("forward");
       break;
     case 6:
-      forward_right();
-      Serial.println("forward_right");
+      right();
+      Serial.println("right");
       break;
     case 2:
       backward();
       Serial.println("backward");
       break;
     case 4:
-      forward_left();
-      Serial.println("forward_left");
+      left();
+      Serial.println("left");
       break;
     case 5:
       _stop();
@@ -149,8 +149,28 @@ void setspeed()
   analogWrite(input_R, speedR);
   // Чем больше, тем интенсивнее работает мотор.
 }
-// движение вперед.
+// Поворот направо с блокировкой правых колес.
 void forward()
+{
+  // левые колеса вращаются.
+    digitalWrite(motor_L1, HIGH); 
+    digitalWrite(motor_L2, LOW);
+    // блокировка вращение правых колес.
+    digitalWrite(motor_R1, LOW);
+    digitalWrite(motor_R2, HIGH);
+}
+// Поворот налево с блокировкой левых колес.
+void backward()
+{
+  // блокировка вращение левых колес.
+    digitalWrite(motor_L1, LOW); 
+    digitalWrite(motor_L2, HIGH);
+   // правые колеса вращаются.
+    digitalWrite(motor_R1, HIGH);
+    digitalWrite(motor_R2, LOW);
+}
+// движение вперед.
+void right()
 {
     // Если двигатель будет работать не в ту сторону,
     // поменять на нем контакты местами.
@@ -159,49 +179,14 @@ void forward()
     digitalWrite(motor_R1, HIGH);
     digitalWrite(motor_R2,LOW);
 }
-// Поворот налево с блокировкой левых колес.
-void forward_left()
-{
-  // блокировка вращение левых колес.
-    digitalWrite(motor_L1, LOW); 
-    digitalWrite(motor_L2, LOW);
-   // правые колеса вращаются.
-    digitalWrite(motor_R1, HIGH);
-    digitalWrite(motor_R2, LOW);
-}
-// Поворот направо с блокировкой правых колес.
-void forward_right()
-{
-  // левые колеса вращаются.
-    digitalWrite(motor_L1, HIGH); 
-    digitalWrite(motor_L2, LOW);
-    // блокировка вращение правых колес.
-    digitalWrite(motor_R1, LOW);
-    digitalWrite(motor_R2, LOW);
-}
+
 // Включаем движение назад.
-void backward()
+void left()
 {
     // Смена направления вращения двигателей.
     digitalWrite(motor_L2, HIGH);
     digitalWrite(motor_L1, LOW);
     digitalWrite(motor_R2, HIGH);
-    digitalWrite(motor_R1, LOW);
-}
-
-void backward_right()
-{
-    digitalWrite(motor_L2, LOW);
-    digitalWrite(motor_L1, LOW);
-    digitalWrite(motor_R2, HIGH);
-    digitalWrite(motor_R1, LOW);
-}
-
-void backward_left()
-{
-    digitalWrite(motor_L2, HIGH);
-    digitalWrite(motor_L1, LOW);
-    digitalWrite(motor_R2, LOW);
     digitalWrite(motor_R1, LOW);
 }
 
