@@ -127,74 +127,71 @@ void setup_motor_system(int L1, int  L2, int  R1, int R2, int iL, int iR)
   // Для левых и правых моторов робота.
   motor_R1=R1; motor_R2=R2; input_R=iR;
   // Переводятся указанные порты в состояние вывода данных.
-  pinMode(motor_L1, OUTPUT);
-  pinMode(motor_L2, OUTPUT);
-  pinMode(input_L, OUTPUT);
   pinMode(motor_R1, OUTPUT);
   pinMode(motor_R2, OUTPUT);
   pinMode(input_R, OUTPUT);
+
+  pinMode(motor_L1, OUTPUT);
+  pinMode(motor_L2, OUTPUT);
+  pinMode(input_L, OUTPUT);
+
 }
-// Функция задает скорость двигателя.
+
 void setspeed(int LeftSpeed, int RightSpeed)
 {
   // Задает ширину положительного фронта от 0 до 255.
-  analogWrite(input_L, LeftSpeed);
   analogWrite(input_R, RightSpeed);
-  // Чем больше, тем интенсивнее работает мотор.
+  analogWrite(input_L, LeftSpeed);
 }
+
 void setspeed()
 {
   // Задает ширину положительного фронта от 0 до 255.
-  analogWrite(input_L, speedL);
   analogWrite(input_R, speedR);
-  // Чем больше, тем интенсивнее работает мотор.
-}
-// Поворот направо с блокировкой правых колес.
-void forward()
-{
-  // левые колеса вращаются.
-    digitalWrite(motor_L1, HIGH); 
-    digitalWrite(motor_L2, LOW);
-    // блокировка вращение правых колес.
-    digitalWrite(motor_R1, LOW);
-    digitalWrite(motor_R2, HIGH);
-}
-// Поворот налево с блокировкой левых колес.
-void backward()
-{
-  // блокировка вращение левых колес.
-    digitalWrite(motor_L1, LOW); 
-    digitalWrite(motor_L2, HIGH);
-   // правые колеса вращаются.
-    digitalWrite(motor_R1, HIGH);
-    digitalWrite(motor_R2, LOW);
-}
-// движение вперед.
-void right()
-{
-    // Если двигатель будет работать не в ту сторону,
-    // поменять на нем контакты местами.
-    digitalWrite(motor_L1, HIGH);
-    digitalWrite(motor_L2,LOW);
-    digitalWrite(motor_R1, HIGH);
-    digitalWrite(motor_R2,LOW);
+  analogWrite(input_L, speedL);
 }
 
-// Включаем движение назад.
+void forward()
+{
+    digitalWrite(motor_R1, 1);
+    digitalWrite(motor_R2, 0);
+
+    digitalWrite(motor_L1, 1); 
+    digitalWrite(motor_L2, 0);
+}
+
+void backward()
+{
+    digitalWrite(motor_R1, 0);
+    digitalWrite(motor_R2, 1);
+
+    digitalWrite(motor_L1, 0); 
+    digitalWrite(motor_L2, 1);
+}
+
+void right()
+{
+    digitalWrite(motor_R1, 0);
+    digitalWrite(motor_R2, 1);
+
+    digitalWrite(motor_L1, 1);
+    digitalWrite(motor_L2, 0);
+}
+
 void left()
 {
-    // Смена направления вращения двигателей.
-    digitalWrite(motor_L2, HIGH);
-    digitalWrite(motor_L1, LOW);
-    digitalWrite(motor_R2, HIGH);
-    digitalWrite(motor_R1, LOW);
+    digitalWrite(motor_R1, 1);
+    digitalWrite(motor_R2, 0);
+
+    digitalWrite(motor_L1, 0);
+    digitalWrite(motor_L2, 1);
 }
 
 void _stop()
 {
-    // Блокировка всех колес.
-    digitalWrite(motor_L2, LOW);
-    digitalWrite(motor_L1, LOW);
-    digitalWrite(motor_R2, LOW);
-    digitalWrite(motor_R1, LOW);
+    digitalWrite(motor_R2, 0);
+    digitalWrite(motor_R1, 0);
+
+    digitalWrite(motor_L2, 0);
+    digitalWrite(motor_L1, 0);
 }
