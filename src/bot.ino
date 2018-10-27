@@ -1,8 +1,12 @@
 #include <SoftwareSerial.h>
+#include <Servo.h>
 
 // esp rx-tx
 #define VirtualRX 10
 #define VirtualTX 11
+
+Servo servoFrontEcho;  // create servo object to control a servo
+// twelve servo objects can be created on most boards
 
 SoftwareSerial EspSerial(VirtualRX, VirtualTX);
 
@@ -26,23 +30,62 @@ int newSpeedR = speedR;
 // speed toggler
 bool speedToggler = 0;
 
-void setup()
-{
-  setup_motor_system(9, 7, 3, 4, 6, 5);
-  setspeed(0, 0);
+//sonic and servo global variables
+//define servo pins
+#define ServoFrontPin 12
 
-  Serial.begin(9600);
-  EspSerial.begin(9600);
+// servo variables
+const int servoFrontPosMiddle = 80;
+int servoFrontPosCurrent = servoFrontPosMiddle;    // variable to store the servo position
 
+//define sonic pins
+#define SonicFrontTriggerPin A0
+#define SonicFrontEchorPin A1
+
+// defines sonic variables
+long sonicDuration;
+int sonicDistance;
+long inches, cm;
+int counter;
+
+
+void setup() {
+  setupSerial();
+  setupChassi();
+  setupServo();
+  setupSonic();
   Serial.println("gate arduino start");
-  Serial.println("");
+  Serial.println();
+  delay(100);
 }
-// Основная программа.
+
 void loop()
 {
   getDataFromEsp();
+  lookAround();
 }
 
+void setupChassi() {
+  ssetupMotorSystem(9, 7, 3, 4, 6, 5);
+  setspeed(0, 0);
+}
+
+void setupSerial() {
+  Serial.begin(9600);
+  EspSerial.begin(9600);
+}
+
+void setupSonic() {
+  pinMode(SonicFrontTriggerPin, OUTPUT); // Sets the SonicFrontTriggerPin as an Output
+  pinMode(SonicFrontEchorPin, INPUT); // Sets the SonicFrontEchorPin as an Input
+}
+
+void setupServo() {
+  servoFrontEcho.attach(ServoFrontPin);  // attaches the servo on pin 9 to the servo object
+  servoFrontEcho.write(servoFrontPosMiddle);              // tell servo to go to position in variable 'servoFrontPosCurrent'
+}
+
+// connecting
 void getDataFromEsp()
 {
   if (!EspSerial.available())
@@ -77,6 +120,7 @@ void getDataFromEsp()
   }
 }
 
+// movement
 void manageMovement()
 {
   bool isChaged = false;
@@ -160,8 +204,7 @@ int getDirection(int x, int y)
   return 5;
 }
 
-// Функция инициализации управления моторами.
-void setup_motor_system(int L1, int L2, int R1, int R2, int iL, int iR)
+void ssetupMotorSystem(int L1, int L2, int R1, int R2, int iL, int iR)
 {
   // Заносятся в переменные номера контактов (пинов) Arduino.
   motor_L1 = L1;
@@ -231,4 +274,73 @@ void _stop()
 
   digitalWrite(motor_L2, 0);
   digitalWrite(motor_L1, 0);
+}
+
+
+// servo and sonic
+
+void lookAround() {
+    for (servoFrontPosCurrent = servoFrontPosMiddle; servoFrontPosCurrent <= 160; servoFrontPosCurrent += 10) { // goes from 0 degrees to 180 degrees
+    checkDistance();
+    // in steps of 1 degree
+    servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
+    delay(15);                       // waits 15ms for the servo to reach the position
+  }
+  for (servoFrontPosCurrent = 160; servoFrontPosCurrent >= 0; servoFrontPosCurrent -= 10) { // goes from 180 degrees to 0 degrees
+    checkDistance();
+    servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
+    delay(15);                       // waits 15ms for the servo to reach the position
+  }
+  for (servoFrontPosCurrent = 0; servoFrontPosCurrent <= servoFrontPosMiddle; servoFrontPosCurrent += 10) { // goes from 180 degrees to 0 degrees
+    checkDistance();
+    servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
+    delay(15);                       // waits 15ms for the servo to reach the position
+  }
+  
+  counter = 50;
+  while(counter) {
+    checkDistance();
+    delay(100);
+    counter--;
+  }
+}
+
+void checkDistance() {
+    // Clears the SonicFrontTriggerPin
+    digitalWrite(SonicFrontTriggerPin, LOW);
+    delayMicroseconds(2);
+    // Sets the SonicFrontTriggerPin on HIGH state for 10 micro seconds
+    digitalWrite(SonicFrontTriggerPin, HIGH);
+    delayMicroseconds(10);
+    digitalWrite(SonicFrontTriggerPin, LOW);
+    // Reads the SonicFrontEchorPin, returns the sound wave travel time in microseconds
+    sonicDuration = pulseIn(SonicFrontEchorPin, HIGH);
+
+    // convert the time into a sonicDistance
+    inches = microsecondsToInches(sonicDuration);
+    cm = microsecondsToCentimeters(sonicDuration);
+  
+    Serial.print(servoFrontPosCurrent);
+    Serial.print("position, ");
+    Serial.print(inches);
+    Serial.print("in, ");
+    Serial.print(cm);
+    Serial.print("cm");
+    Serial.println();
+}
+
+long microsecondsToInches(long microseconds) {
+  // According to Parallax's datasheet for the PING))), there are 73.746
+  // microseconds per inch (i.e. sound travels at 1130 feet per second).
+  // This gives the sonicDistance travelled by the ping, outbound and return,
+  // so we divide by 2 to get the sonicDistance of the obstacle.
+  // See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
+  return microseconds / 74 / 2;
+}
+
+long microsecondsToCentimeters(long microseconds) {
+  // The speed of sound is 340 m/s or 29 microseconds per centimeter.
+  // The ping travels out and back, so to find the sonicDistance of the object we
+  // take half of the sonicDistance travelled.
+  return microseconds / 29 / 2;
 }
