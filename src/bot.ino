@@ -1,12 +1,10 @@
 #include <SoftwareSerial.h>
 #include <Servo.h>
+#include <timer-api.h>
 
 // esp rx-tx
 #define VirtualRX 10
 #define VirtualTX 11
-
-Servo servoFrontEcho;  // create servo object to control a servo
-// twelve servo objects can be created on most boards
 
 SoftwareSerial EspSerial(VirtualRX, VirtualTX);
 
@@ -31,6 +29,10 @@ int newSpeedR = speedR;
 bool speedToggler = 0;
 
 //sonic and servo global variables
+
+Servo servoFrontEcho;  // create servo object to control a servo
+// twelve servo objects can be created on most boards
+
 //define servo pins
 #define ServoFrontPin 12
 
@@ -48,8 +50,12 @@ int sonicDistance;
 long inches, cm;
 int counter;
 
+// timer
+unsigned long _period;
+
 
 void setup() {
+  setupTimer();
   setupSerial();
   setupChassi();
   setupServo();
@@ -63,6 +69,22 @@ void loop()
 {
   getDataFromEsp();
   lookAround();
+  manageMovement();
+}
+
+void timer_handle_interrupts(int timer) {
+    static unsigned long prev_time = 0;
+    static long count = FREQ_DIVIDER - 1;
+    
+    if(count == 0) {
+        unsigned long _time = micros();
+        _period = _time - prev_time;
+        prev_time = _time;
+      
+        count = FREQ_DIVIDER - 1;
+    } else {
+        count--;
+    }
 }
 
 void setupChassi() {
@@ -83,6 +105,10 @@ void setupSonic() {
 void setupServo() {
   servoFrontEcho.attach(ServoFrontPin);  // attaches the servo on pin 9 to the servo object
   servoFrontEcho.write(servoFrontPosMiddle);              // tell servo to go to position in variable 'servoFrontPosCurrent'
+}
+
+void setupTimer() {
+  timer_init_ISR_1KHz(TIMER_DEFAULT);
 }
 
 // connecting
@@ -307,14 +333,14 @@ void lookAround() {
 
 void checkDistance() {
     // Clears the SonicFrontTriggerPin
-    digitalWrite(SonicFrontTriggerPin, LOW);
+    digitalWrite(SonicFrontTriggerPin, 0);
     delayMicroseconds(2);
-    // Sets the SonicFrontTriggerPin on HIGH state for 10 micro seconds
-    digitalWrite(SonicFrontTriggerPin, HIGH);
+    // Sets the SonicFrontTriggerPin on 1 state for 10 micro seconds
+    digitalWrite(SonicFrontTriggerPin, 1);
     delayMicroseconds(10);
-    digitalWrite(SonicFrontTriggerPin, LOW);
+    digitalWrite(SonicFrontTriggerPin, 0);
     // Reads the SonicFrontEchorPin, returns the sound wave travel time in microseconds
-    sonicDuration = pulseIn(SonicFrontEchorPin, HIGH);
+    sonicDuration = pulseIn(SonicFrontEchorPin, 1);
 
     // convert the time into a sonicDistance
     inches = microsecondsToInches(sonicDuration);
