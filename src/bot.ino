@@ -37,8 +37,9 @@ Servo servoFrontEcho;  // create servo object to control a servo
 #define ServoFrontPin 12
 
 // servo variables
-const int servoFrontPosMiddle = 80;
-int servoFrontPosCurrent = servoFrontPosMiddle;    // variable to store the servo position
+const int SERVO_FRONT_POS_MIDDLE = 80;
+int servoFrontPosCurrent = SERVO_FRONT_POS_MIDDLE;
+int servoFrontPosNext = NULL;
 
 //define sonic pins
 #define SonicFrontTriggerPin A0
@@ -48,10 +49,10 @@ int servoFrontPosCurrent = servoFrontPosMiddle;    // variable to store the serv
 long sonicDuration;
 int sonicDistance;
 long inches, cm;
-int counter;
+// int counter;
 
 // timer
-unsigned long _period;
+// unsigned long _period;
 
 
 void setup() {
@@ -68,23 +69,45 @@ void setup() {
 void loop()
 {
   getDataFromEsp();
-  lookAround();
-  manageMovement();
+  // lookAround();
+  // manageMovement();
 }
 
+const int PERIOD_1 = 1;
+const int PERIOD_10 = 10;
+const int PERIOD_15 = 15;
+const int PERIOD_20 = 20;
+const int PERIOD_50 = 50;
+const int PERIOD_100 = 100;
+
 void timer_handle_interrupts(int timer) {
-    static unsigned long prev_time = 0;
-    static long count = FREQ_DIVIDER - 1;
+    // static unsigned long prev_time = 0;
+    // static long count = FREQ_DIVIDER - 1;
+    static long counterServo = PERIOD_20 - 1;
+    static long counterSonic = PERIOD_20 - 1;
+    static long counterMovement = PERIOD_10 - 1;
+
+    counterServo = executeOnTimer(counterServo, PERIOD_20, lookAround);
+    counterMovement = executeOnTimer(counterMovement, PERIOD_10, manageMovement);
     
-    if(count == 0) {
-        unsigned long _time = micros();
-        _period = _time - prev_time;
-        prev_time = _time;
+    // if(count == 0) {
+    //     unsigned long _time = micros();
+    //     _period = _time - prev_time;
+    //     prev_time = _time;
       
-        count = FREQ_DIVIDER - 1;
-    } else {
-        count--;
-    }
+    //     count = FREQ_DIVIDER - 1;
+    // } else {
+    //     count--;
+    // }
+}
+
+int executeOnTimer(int timer, int timerPeriod, void(*callback)(void)) {
+  if (timer == 0) {
+    callback();
+    return timerPeriod - 1;
+  }
+
+  return timer--;
 }
 
 void setupChassi() {
@@ -104,7 +127,7 @@ void setupSonic() {
 
 void setupServo() {
   servoFrontEcho.attach(ServoFrontPin);  // attaches the servo on pin 9 to the servo object
-  servoFrontEcho.write(servoFrontPosMiddle);              // tell servo to go to position in variable 'servoFrontPosCurrent'
+  servoFrontEcho.write(SERVO_FRONT_POS_MIDDLE);              // tell servo to go to position in variable 'servoFrontPosCurrent'
 }
 
 void setupTimer() {
@@ -125,6 +148,8 @@ void getDataFromEsp()
   Serial.println("transmission start");
 
   int command = EspSerial.parseInt();
+  Serial.print("command = ");
+  Serial.println(command);
 
   switch (command)
   {
@@ -305,29 +330,89 @@ void _stop()
 
 // servo and sonic
 
-void lookAround() {
-    for (servoFrontPosCurrent = servoFrontPosMiddle; servoFrontPosCurrent <= 160; servoFrontPosCurrent += 10) { // goes from 0 degrees to 180 degrees
-    checkDistance();
-    // in steps of 1 degree
-    servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
-    delay(15);                       // waits 15ms for the servo to reach the position
-  }
-  for (servoFrontPosCurrent = 160; servoFrontPosCurrent >= 0; servoFrontPosCurrent -= 10) { // goes from 180 degrees to 0 degrees
-    checkDistance();
-    servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
-    delay(15);                       // waits 15ms for the servo to reach the position
-  }
-  for (servoFrontPosCurrent = 0; servoFrontPosCurrent <= servoFrontPosMiddle; servoFrontPosCurrent += 10) { // goes from 180 degrees to 0 degrees
-    checkDistance();
-    servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
-    delay(15);                       // waits 15ms for the servo to reach the position
-  }
+// void lookAround() {
+//   for (servoFrontPosCurrent = SERVO_FRONT_POS_MIDDLE; servoFrontPosCurrent <= 160; servoFrontPosCurrent += 10) { // goes from 0 degrees to 180 degrees
+//     checkDistance();
+//     // in steps of 1 degree
+//     servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
+//     delay(15);                       // waits 15ms for the servo to reach the position
+//   }
+//   for (servoFrontPosCurrent = 160; servoFrontPosCurrent >= 0; servoFrontPosCurrent -= 10) { // goes from 180 degrees to 0 degrees
+//     checkDistance();
+//     servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
+//     delay(15);                       // waits 15ms for the servo to reach the position
+//   }
+//   for (servoFrontPosCurrent = 0; servoFrontPosCurrent <= SERVO_FRONT_POS_MIDDLE; servoFrontPosCurrent += 10) { // goes from 180 degrees to 0 degrees
+//     checkDistance();
+//     servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
+//     delay(15);                       // waits 15ms for the servo to reach the position
+//   }
   
-  counter = 50;
-  while(counter) {
-    checkDistance();
-    delay(100);
-    counter--;
+//   counter = 50;
+//   while(counter) {
+//     checkDistance();
+//     delay(100);
+//     counter--;
+//   }
+// }
+
+void lookAround() {
+  static const int cyclesCount = 3;
+  static const int servoStep = 10;
+  static const int servoStartPos = 0;
+  static const int servoEndPos = 160;
+  static const int servoPosMiddle = SERVO_FRONT_POS_MIDDLE;
+  static int currCycle = cyclesCount - 1;
+  static int heartBeat = 0;
+  static int servoFrontPosCurrent = SERVO_FRONT_POS_MIDDLE;
+  static int servoFrontPosNext = NULL;
+  static const int WAITING_PERIOD_DEFAULT = 1000;
+  static int waitingCounter = 0;
+
+  if (!servoFrontPosNext) {
+    if (servoFrontPosCurrent + servoStep <= servoEndPos) {
+      servoFrontPosNext = servoFrontPosCurrent + servoStep;
+    } else {
+      servoFrontPosNext = servoFrontPosCurrent - servoStep;
+    }
+  }
+
+  checkDistance();
+  servoFrontEcho.write(servoFrontPosNext);  // tell servo to go to position in variable 'servoFrontPosCurrent'
+  servoFrontPosCurrent = servoFrontPosNext;
+
+  if (currCycle % 2 == 0 && currCycle != 0) {
+    if (servoFrontPosCurrent == servoEndPos) {
+      currCycle--;
+      servoFrontPosNext = servoFrontPosCurrent - servoStep;
+      return;
+    }
+
+    servoFrontPosNext += servoStep;
+    return;
+  }
+
+  if (currCycle % 2 == 1) {
+    if (servoFrontPosCurrent == servoStartPos) {
+      currCycle--;
+      servoFrontPosNext = servoFrontPosCurrent + servoStep;
+      return;
+    }
+
+    servoFrontPosNext -= servoStep;
+    return;
+  }
+
+  if (currCycle == 0) {
+    if (servoFrontPosCurrent == servoPosMiddle) {
+      currCycle = cyclesCount - 1;
+      waitingCounter = WAITING_PERIOD_DEFAULT - 1;
+      servoFrontPosNext = NULL;
+      return;
+    }
+
+    servoFrontPosNext += servoStep;
+    return;
   }
 }
 
