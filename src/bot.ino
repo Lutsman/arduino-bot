@@ -1,5 +1,5 @@
 #include <SoftwareSerial.h>
-#include <Servo.h>
+#include <PWMServo.h>
 #include <timer-api.h>
 
 // esp rx-tx
@@ -30,11 +30,11 @@ bool speedToggler = 0;
 
 //sonic and servo global variables
 
-Servo servoFrontEcho;  // create servo object to control a servo
+PWMServo servoFrontEcho;  // create servo object to control a servo
 // twelve servo objects can be created on most boards
 
 //define servo pins
-#define ServoFrontPin 12
+#define ServoFrontPin 9
 
 // servo variables
 const int SERVO_FRONT_POS_MIDDLE = 80;
@@ -49,10 +49,6 @@ int servoFrontPosNext = NULL;
 long sonicDuration;
 int sonicDistance;
 long inches, cm;
-// int counter;
-
-// timer
-// unsigned long _period;
 
 
 void setup() {
@@ -69,8 +65,6 @@ void setup() {
 void loop()
 {
   getDataFromEsp();
-  // lookAround();
-  // manageMovement();
 }
 
 const int PERIOD_1 = 1;
@@ -81,28 +75,47 @@ const int PERIOD_50 = 50;
 const int PERIOD_100 = 100;
 
 void timer_handle_interrupts(int timer) {
-    // static unsigned long prev_time = 0;
-    // static long count = FREQ_DIVIDER - 1;
-    static long counterServo = PERIOD_20 - 1;
-    static long counterSonic = PERIOD_20 - 1;
-    static long counterMovement = PERIOD_10 - 1;
+  static long counterServo = PERIOD_20 - 1;
+  static long counterSonic = PERIOD_20 - 1;
+  static long counterMovement = PERIOD_10 - 1;
 
-    counterServo = executeOnTimer(counterServo, PERIOD_20, lookAround);
-    counterMovement = executeOnTimer(counterMovement, PERIOD_10, manageMovement);
-    
-    // if(count == 0) {
-    //     unsigned long _time = micros();
-    //     _period = _time - prev_time;
-    //     prev_time = _time;
-      
-    //     count = FREQ_DIVIDER - 1;
-    // } else {
-    //     count--;
-    // }
+  Serial.println("1");
+
+  // if (counterSonic == 0) {
+  //   checkDistance();
+  //   counterSonic = PERIOD_20 - 1;
+  // } else {
+  //   counterSonic--;
+  // }
+
+  // Serial.println(counterServo);
+
+  // if (counterServo == 0) {
+  //   checkDistance();
+  //   lookAround();
+  //   counterServo = PERIOD_20 - 1;
+  // } else {
+  //   counterServo--;
+  //   Serial.println(counterServo);
+  // }
+
+  // if (counterMovement == 0) {
+  //   manageMovement();
+  //   counterMovement = PERIOD_10 - 1;
+  // } else {
+  //   counterMovement--;
+  // }
+
+  // counterServo = executeOnTimer(counterServo, PERIOD_20, lookAround);
+  // counterMovement = executeOnTimer(counterMovement, PERIOD_10, manageMovement);
 }
 
 int executeOnTimer(int timer, int timerPeriod, void(*callback)(void)) {
+   Serial.write(timer);
+   Serial.println();
   if (timer == 0) {
+    Serial.write(1);
+    Serial.println();
     callback();
     return timerPeriod - 1;
   }
@@ -111,7 +124,7 @@ int executeOnTimer(int timer, int timerPeriod, void(*callback)(void)) {
 }
 
 void setupChassi() {
-  ssetupMotorSystem(9, 7, 3, 4, 6, 5);
+  setupMotorSystem(12, 7, 3, 4, 6, 5);
   setspeed(0, 0);
 }
 
@@ -131,7 +144,7 @@ void setupServo() {
 }
 
 void setupTimer() {
-  timer_init_ISR_1KHz(TIMER_DEFAULT);
+  timer_init_ISR_100Hz(TIMER_DEFAULT);
 }
 
 // connecting
@@ -153,21 +166,18 @@ void getDataFromEsp()
 
   switch (command)
   {
-  case 1:
-    int x = EspSerial.parseInt();
-    int y = EspSerial.parseInt();
-    newDirection = getDirection(x, y);
-    // if (newDirection == direction) break;
-    // move(newDirection);
-    break;
-  case 2:
-    int newSpeed = EspSerial.parseInt();
-    newSpeedL = newSpeedR = newSpeed;
-    // move(direction);
-    break;
-  case 3:
-    speedToggler = EspSerial.parseInt();
-    break;
+    case 1:
+      int x = EspSerial.parseInt();
+      int y = EspSerial.parseInt();
+      newDirection = getDirection(x, y);
+      break;
+    case 2:
+      int newSpeed = EspSerial.parseInt();
+      newSpeedL = newSpeedR = newSpeed;
+      break;
+    case 3:
+      speedToggler = EspSerial.parseInt();
+      break;
   }
 }
 
@@ -203,30 +213,30 @@ void move(int direction, int speedL, int speedR)
 
   switch (direction)
   {
-  case 8:
-    forward();
-    Serial.println("forward");
-    break;
-  case 6:
-    right();
-    Serial.println("right");
-    break;
-  case 2:
-    backward();
-    Serial.println("backward");
-    break;
-  case 4:
-    left();
-    Serial.println("left");
-    break;
-  case 5:
-    _stop();
-    Serial.println("stop");
-    break;
-  default:
-    _stop();
-    Serial.println("stop");
-    break;
+    case 8:
+      forward();
+      Serial.println("forward");
+      break;
+    case 6:
+      right();
+      Serial.println("right");
+      break;
+    case 2:
+      backward();
+      Serial.println("backward");
+      break;
+    case 4:
+      left();
+      Serial.println("left");
+      break;
+    case 5:
+      _stop();
+      Serial.println("stop");
+      break;
+    default:
+      _stop();
+      Serial.println("stop");
+      break;
   }
 }
 
@@ -255,7 +265,7 @@ int getDirection(int x, int y)
   return 5;
 }
 
-void ssetupMotorSystem(int L1, int L2, int R1, int R2, int iL, int iR)
+void setupMotorSystem(int L1, int L2, int R1, int R2, int iL, int iR)
 {
   // Заносятся в переменные номера контактов (пинов) Arduino.
   motor_L1 = L1;
@@ -327,35 +337,6 @@ void _stop()
   digitalWrite(motor_L1, 0);
 }
 
-
-// servo and sonic
-
-// void lookAround() {
-//   for (servoFrontPosCurrent = SERVO_FRONT_POS_MIDDLE; servoFrontPosCurrent <= 160; servoFrontPosCurrent += 10) { // goes from 0 degrees to 180 degrees
-//     checkDistance();
-//     // in steps of 1 degree
-//     servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
-//     delay(15);                       // waits 15ms for the servo to reach the position
-//   }
-//   for (servoFrontPosCurrent = 160; servoFrontPosCurrent >= 0; servoFrontPosCurrent -= 10) { // goes from 180 degrees to 0 degrees
-//     checkDistance();
-//     servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
-//     delay(15);                       // waits 15ms for the servo to reach the position
-//   }
-//   for (servoFrontPosCurrent = 0; servoFrontPosCurrent <= SERVO_FRONT_POS_MIDDLE; servoFrontPosCurrent += 10) { // goes from 180 degrees to 0 degrees
-//     checkDistance();
-//     servoFrontEcho.write(servoFrontPosCurrent);              // tell servo to go to position in variable 'servoFrontPosCurrent'
-//     delay(15);                       // waits 15ms for the servo to reach the position
-//   }
-  
-//   counter = 50;
-//   while(counter) {
-//     checkDistance();
-//     delay(100);
-//     counter--;
-//   }
-// }
-
 void lookAround() {
   static const int cyclesCount = 3;
   static const int servoStep = 10;
@@ -363,9 +344,9 @@ void lookAround() {
   static const int servoEndPos = 160;
   static const int servoPosMiddle = SERVO_FRONT_POS_MIDDLE;
   static int currCycle = cyclesCount - 1;
-  static int heartBeat = 0;
-  static int servoFrontPosCurrent = SERVO_FRONT_POS_MIDDLE;
-  static int servoFrontPosNext = NULL;
+  // static int heartBeat = 0;
+  // static int servoFrontPosCurrent = SERVO_FRONT_POS_MIDDLE;
+  // static int servoFrontPosNext = NULL;
   static const int WAITING_PERIOD_DEFAULT = 1000;
   static int waitingCounter = 0;
 
@@ -377,7 +358,13 @@ void lookAround() {
     }
   }
 
-  checkDistance();
+  // checkDistance();
+
+  if (waitingCounter) {
+    waitingCounter--;
+    return;
+  }
+
   servoFrontEcho.write(servoFrontPosNext);  // tell servo to go to position in variable 'servoFrontPosCurrent'
   servoFrontPosCurrent = servoFrontPosNext;
 
@@ -417,27 +404,27 @@ void lookAround() {
 }
 
 void checkDistance() {
-    // Clears the SonicFrontTriggerPin
-    digitalWrite(SonicFrontTriggerPin, 0);
-    delayMicroseconds(2);
-    // Sets the SonicFrontTriggerPin on 1 state for 10 micro seconds
-    digitalWrite(SonicFrontTriggerPin, 1);
-    delayMicroseconds(10);
-    digitalWrite(SonicFrontTriggerPin, 0);
-    // Reads the SonicFrontEchorPin, returns the sound wave travel time in microseconds
-    sonicDuration = pulseIn(SonicFrontEchorPin, 1);
+  // Clears the SonicFrontTriggerPin
+  digitalWrite(SonicFrontTriggerPin, 0);
+  delayMicroseconds(2);
+  // Sets the SonicFrontTriggerPin on 1 state for 10 micro seconds
+  digitalWrite(SonicFrontTriggerPin, 1);
+  delayMicroseconds(10);
+  digitalWrite(SonicFrontTriggerPin, 0);
+  // Reads the SonicFrontEchorPin, returns the sound wave travel time in microseconds
+  sonicDuration = pulseIn(SonicFrontEchorPin, 1);
 
-    // convert the time into a sonicDistance
-    inches = microsecondsToInches(sonicDuration);
-    cm = microsecondsToCentimeters(sonicDuration);
-  
-    Serial.print(servoFrontPosCurrent);
-    Serial.print("position, ");
-    Serial.print(inches);
-    Serial.print("in, ");
-    Serial.print(cm);
-    Serial.print("cm");
-    Serial.println();
+  // convert the time into a sonicDistance
+  inches = microsecondsToInches(sonicDuration);
+  cm = microsecondsToCentimeters(sonicDuration);
+
+  Serial.print(servoFrontPosCurrent);
+  Serial.print("position, ");
+  Serial.print(inches);
+  Serial.print("in, ");
+  Serial.print(cm);
+  Serial.print("cm");
+  Serial.println();
 }
 
 long microsecondsToInches(long microseconds) {
