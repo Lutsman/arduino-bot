@@ -1,0 +1,2 @@
+ObserverTower KEYWORD1
+lookAround KEYWORD2
