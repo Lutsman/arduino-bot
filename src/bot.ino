@@ -1,9 +1,10 @@
 #include <SoftwareSerial.h>
 #include <Servo.h>
+#include <Ultrasonic.h>
 
 // esp rx-tx
-#define VirtualRX 10
-#define VirtualTX 11
+#define VirtualRX 2
+#define VirtualTX 3
 
 SoftwareSerial EspSerial(VirtualRX, VirtualTX);
 
@@ -13,6 +14,14 @@ char startS[] = "$!";
 // motor variables
 int motor_L1, motor_L2, input_L;
 int motor_R1, motor_R2, input_R;
+
+// motor pins
+const int INPUT_R = 5;
+const int MOTOR_R1 = 6;
+const int MOTOR_R2 = 7;
+const int MOTOR_L1 = 8;
+const int MOTOR_L2 = 9;
+const int INPUT_L = 10;
 
 //direction
 int direction = 5;
@@ -30,19 +39,31 @@ bool speedToggler = 0;
 //sonic and servo global variables
 
 Servo servoFrontEcho; // create servo object to control a servo
+Servo servoBackEcho;
 // twelve servo objects can be created on most boards
 
 //define servo pins
-#define ServoFrontPin 12
+#define ServoFrontPin 4
+#define ServoBackPin 13
 
 // servo variables
+// front
 const int SERVO_FRONT_POS_MIDDLE = 80;
 int servoFrontPosCurrent = SERVO_FRONT_POS_MIDDLE;
 int servoFrontPosNext = -1;
+// back
+const int SERVO_BACK_POS_MIDDLE = 80;
+int servoBackPosCurrent = SERVO_BACK_POS_MIDDLE;
+int servoBackPosNext = -1;
+
 
 //define sonic pins
+// front
 #define SonicFrontTriggerPin A0
 #define SonicFrontEchorPin A1
+//back
+#define SonicFrontTriggerPin 12
+#define SonicFrontEchorPin 11
 
 // defines sonic variables
 long sonicDuration;
@@ -264,7 +285,7 @@ void loop()
 
 void setupChassi()
 {
-  setupMotorSystem(12, 7, 3, 4, 6, 5);
+  setupMotorSystem(MOTOR_L1, MOTOR_L2, MOTOR_R1, MOTOR_R2, INPUT_L, INPUT_R);
   setspeed(0, 0);
 }
 
@@ -476,13 +497,20 @@ void _stop()
   digitalWrite(motor_L1, 0);
 }
 
-void lookAround()
+void lookAround(
+  Servo servo, 
+  Ultrasonic sonic, 
+  int servoPosMiddle, 
+  int servoPosStep, 
+  int servoPosCurrent, 
+  int servoPosNext
+  )
 {
   static const int cyclesCount = 3;
+  // static const int servoPosMiddle = SERVO_FRONT_POS_MIDDLE;
   static const int servoStep = 10;
-  static const int servoStartPos = 0;
-  static const int servoEndPos = 160;
-  static const int servoPosMiddle = SERVO_FRONT_POS_MIDDLE;
+  static const int servoPosStart = 0;
+  static const int servoPosEnd = servoPosMiddle * 2;
   static int currCycle = cyclesCount - 1;
   static const int WAITING_PERIOD_DEFAULT = 500;
   static int waitingCounter = 0;
@@ -490,15 +518,15 @@ void lookAround()
   if (waitingCounter)
   {
     waitingCounter--;
-    Serial.print("waitingCounter = ");
-    Serial.println(waitingCounter);
+    // Serial.print("waitingCounter = ");
+    // Serial.println(waitingCounter);
     return;
   }
 
   // Serial.println(servoFrontPosNext);
   if (servoFrontPosNext == -1)
   {
-    if (servoFrontPosCurrent + servoStep <= servoEndPos)
+    if (servoFrontPosCurrent + servoStep <= servoPosEnd)
     {
       servoFrontPosNext = servoFrontPosCurrent + servoStep;
     }
@@ -516,16 +544,16 @@ void lookAround()
     return;
   }
 
-  Serial.print("servoFrontPosNext end = ");
-  Serial.println(servoFrontPosNext);
+  // Serial.print("servoFrontPosNext end = ");
+  // Serial.println(servoFrontPosNext);
 
   servoFrontEcho.write(servoFrontPosNext); // tell servo to go to position in variable 'servoFrontPosCurrent'
   servoFrontPosCurrent = servoFrontPosNext;
 
   if (currCycle % 2 == 0 && currCycle != 0)
   {
-    Serial.println("4et");
-    if (servoFrontPosCurrent == servoEndPos)
+    // Serial.println("4et");
+    if (servoFrontPosCurrent == servoPosEnd)
     {
       currCycle--;
       servoFrontPosNext = servoFrontPosCurrent - servoStep;
@@ -538,10 +566,10 @@ void lookAround()
 
   if (currCycle % 2 == 1)
   {
-    Serial.println("ne 4et");
-    if (servoFrontPosCurrent == servoStartPos)
+    // Serial.println("ne 4et");
+    if (servoFrontPosCurrent == servoPosStart)
     {
-      Serial.println("ne 4et last step");
+      // Serial.println("ne 4et last step");
       currCycle--;
       servoFrontPosNext = servoFrontPosCurrent + servoStep;
       return;
@@ -553,7 +581,7 @@ void lookAround()
 
   if (currCycle == 0)
   {
-    Serial.println("last 4et");
+    // Serial.println("last 4et");
     if (servoFrontPosCurrent == servoPosMiddle)
     {
       currCycle = cyclesCount - 1;
