@@ -1,21 +1,24 @@
-#include <Servo.h>
-#include <Ultrasonic.h>
 #include <ObserverTower.h>
-#include <Arduino.h>
 
 // const int ObserverTower::servoPosEnd = servoPosMiddle * 2;
+
+void ObserverTower::init()
+{
+  servo.write(servoPosMiddle);
+  servoPosCurrent = servoPosMiddle;
+};
 
 void ObserverTower::lookAround()
 {
   if (waitingCounter)
   {
     waitingCounter--;
-    // Serial.print("waitingCounter = ");
-    // Serial.println(waitingCounter);
+    // serial.print("waitingCounter = ");
+    // serial.println(waitingCounter);
     return;
   }
 
-  // Serial.println(servoPosNext);
+  // serial.println(servoPosNext);
   if (servoPosNext == -1)
   {
     if (servoPosCurrent + servoStep <= servoPosEnd)
@@ -36,18 +39,18 @@ void ObserverTower::lookAround()
     return;
   }
 
-  // Serial.print("servoPosNext end = ");
-  // Serial.println(servoPosNext);
+  // serial.print("servoPosNext end = ");
+  // serial.println(servoPosNext);
 
   // ultrasonicDistance = ultrasonic.read();
-  read();
-  Serial.println(servoPosNext);
+  write();
+  // serial.println(servoPosNext);
   servo.write(servoPosNext); // tell servo to go to position in variable 'servoPosCurrent'
   servoPosCurrent = servoPosNext;
 
   if (currCycle % 2 == 0 && currCycle != 0)
   {
-    // Serial.println("4et");
+    // serial.println("4et");
     if (servoPosCurrent == servoPosEnd)
     {
       currCycle--;
@@ -61,10 +64,10 @@ void ObserverTower::lookAround()
 
   if (currCycle % 2 == 1)
   {
-    // Serial.println("ne 4et");
+    // serial.println("ne 4et");
     if (servoPosCurrent == servoPosStart)
     {
-      // Serial.println("ne 4et last step");
+      // serial.println("ne 4et last step");
       currCycle--;
       servoPosNext = servoPosCurrent + servoStep;
       return;
@@ -76,7 +79,7 @@ void ObserverTower::lookAround()
 
   if (currCycle == 0)
   {
-    // Serial.println("last 4et");
+    // serial.println("last 4et");
     if (servoPosCurrent == servoPosMiddle)
     {
       currCycle = cyclesCount - 1;
@@ -92,13 +95,16 @@ void ObserverTower::lookAround()
 
 int ObserverTower::read()
 {
-  ultrasonicDistance = ultrasonic.read();
-
-  Serial.print(servoPosCurrent);
-  Serial.print("position, ");
-  Serial.print(ultrasonicDistance);
-  Serial.print("cm");
-  Serial.println();
-
   return ultrasonicDistance;
 }
+
+void ObserverTower::write()
+{
+  ultrasonicDistance = ultrasonic.read();
+
+  serial.print(servoPosCurrent);
+  serial.print("position, ");
+  serial.print(ultrasonicDistance);
+  serial.print("cm");
+  serial.println();
+};

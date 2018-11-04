@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <Servo.h>
 #include <Ultrasonic.h>
+#include <Serial.h>
 
 #ifndef ObserverTower_h
 #define ObserverTower_h
@@ -17,6 +18,7 @@ class ObserverTower
 
     Servo servo;
     Ultrasonic ultrasonic;
+    Serial serial;
     towerData observeData;
 
     int servoPosStart;
@@ -34,11 +36,13 @@ class ObserverTower
     ObserverTower(
         Servo servoInit,
         Ultrasonic ultrasonicInit,
+        Serial serialInit,
         int servoPosMiddleInit,
         int servoStepInit,
         int cyclesCountInit):
         servo(servoInit),
         ultrasonic(ultrasonicInit),
+        serial(serialInit),
         servoPosMiddle(servoPosMiddleInit),
         servoStep(servoStepInit),
         cyclesCount(cyclesCountInit),
@@ -48,12 +52,12 @@ class ObserverTower
         ultrasonicDistance(0)
         {
             servoPosEnd = servoPosMiddle * 2;
-            servo.write(servoPosMiddle);
-            servoPosCurrent = servoPosMiddle;
         }
 
+    void init();
     void lookAround();
     int read();
+    void write();
 };
 
 #endif

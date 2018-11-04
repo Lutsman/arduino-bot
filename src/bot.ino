@@ -1,7 +1,7 @@
 #include <SoftwareSerial.h>
 #include <Servo.h>
 #include <Ultrasonic.h>
-#include
+#include <ObserverTower.h>
 
 // esp rx-tx
 #define VirtualRX 2
@@ -39,38 +39,48 @@ bool speedToggler = 0;
 
 //sonic and servo global variables
 
-Servo servoFrontEcho; // create servo object to control a servo
-Servo servoBackEcho;
+const int SERVO_POS_MIDDLE_FRONT = 80;
+const int SERVO_POS_MIDDLE_BACK = 80;
+const int SERVO_STEP = 10;
+const int CYCLES_COUNT = 3;
+
+Servo servoFront; // create servo object to control a servo
+Servo servoBack;
 // twelve servo objects can be created on most boards
 
 //define servo pins
 #define ServoFrontPin 4
 #define ServoBackPin 13
 
-// servo variables
-const int SERVO_WAITING_PERIOD_DEFAULT = 500;
-// front
-const int SERVO_FRONT_POS_MIDDLE = 80;
-int servoFrontPosCurrent = SERVO_FRONT_POS_MIDDLE;
-int servoFrontPosNext = -1;
-// back
-const int SERVO_BACK_POS_MIDDLE = 80;
-int servoBackPosCurrent = SERVO_BACK_POS_MIDDLE;
-int servoBackPosNext = -1;
-
-
 //define sonic pins
 // front
-#define SonicFrontTriggerPin A0
-#define SonicFrontEchorPin A1
+#define UltrasonicFrontTriggerPin A0
+#define UltrasonicFrontEchoPin A1
 //back
-#define SonicFrontTriggerPin 12
-#define SonicFrontEchorPin 11
+#define UltrasonicBackTriggerPin 12
+#define UltrasonicBackEchoPin 11
 
-// defines sonic variables
-long sonicDuration;
-int sonicDistance;
-long inches, cm;
+Ultrasonic ultrasonicFront(UltrasonicFrontTriggerPin, UltrasonicFrontEchoPin);
+Ultrasonic ultrasonicBack(UltrasonicBackTriggerPin, UltrasonicBackEchoPin);
+
+//towers
+ObserverTower towerFront(
+  servoFront,
+  ultrasonicFront,
+  Serial,
+  SERVO_POS_MIDDLE_FRONT,
+  SERVO_STEP,
+  CYCLES_COUNT
+);
+
+ObserverTower towerBack(
+  servoBack,
+  ultrasonicBack,
+  Serial,
+  SERVO_POS_MIDDLE_BACK,
+  SERVO_STEP,
+  CYCLES_COUNT
+);
 
 /*Module Timers
         part of Arduino Mega Server project
@@ -261,10 +271,10 @@ void eraseCycles()
 void setup()
 {
   timersInit();
+  setupServo();
+  setupObserverTowers();
   setupSerial();
   setupChassi();
-  setupServo();
-  setupSonic();
   Serial.println("Gate arduino start");
   delay(100);
 }
@@ -278,11 +288,21 @@ void loop()
   if (cycle10ms)
   {
     manageMovement();
-    checkDistance();
-    // lookAroundFront();
+    towerFront.lookAround();
+    towerBack.lookAround();
   }
 
   eraseCycles();
+}
+
+void setupObserverTowers() {
+    towerFront.init();
+    towerBack.init();
+}
+
+void setupServo() {
+  servoFront.attach(ServoFrontPin);
+  servoBack.attach(ServoBackPin);
 }
 
 void setupChassi()
@@ -295,21 +315,6 @@ void setupSerial()
 {
   Serial.begin(9600);
   EspSerial.begin(9600);
-}
-
-void setupSonic()
-{
-  pinMode(SonicFrontTriggerPin, OUTPUT); // Sets the SonicFrontTriggerPin as an Output
-  pinMode(SonicFrontEchorPin, INPUT);    // Sets the SonicFrontEchorPin as an Input
-}
-
-void setupServo()
-{
-  servoFrontEcho.attach(ServoFrontPin);         // attaches the servo on pin 9 to the servo object
-  servoFrontEcho.write(SERVO_FRONT_POS_MIDDLE); // tell servo to go to position in variable 'servoFrontPosCurrent'
-
-  servoBackEcho.attach(ServoBackPin);
-  servoBackEcho.write(SERVO_BACK_POS_MIDDLE);
 }
 
 // connecting
@@ -500,234 +505,4 @@ void _stop()
 
   digitalWrite(motor_L2, 0);
   digitalWrite(motor_L1, 0);
-}
-
-void lookAroundFront(
-  // Servo servo, 
-  // Ultrasonic sonic, 
-  // int servoPosMiddle, 
-  // int servoPosStep, 
-  // int servoPosCurrent, 
-  // int servoPosNext
-  )
-{
-  static const int cyclesCount = 3;
-  static const int servoPosMiddle = SERVO_FRONT_POS_MIDDLE;
-  static const int servoStep = 10;
-  static const int servoPosStart = 0;
-  static const int servoPosEnd = servoPosMiddle * 2;
-  static int currCycle = cyclesCount - 1;
-  static int waitingCounter = 0;
-
-  if (waitingCounter)
-  {
-    waitingCounter--;
-    // Serial.print("waitingCounter = ");
-    // Serial.println(waitingCounter);
-    return;
-  }
-
-  // Serial.println(servoFrontPosNext);
-  if (servoFrontPosNext == -1)
-  {
-    if (servoFrontPosCurrent + servoStep <= servoPosEnd)
-    {
-      servoFrontPosNext = servoFrontPosCurrent + servoStep;
-    }
-    else
-    {
-      servoFrontPosNext = servoFrontPosCurrent - servoStep;
-    }
-  }
-
-  // checkDistance();
-
-  if (waitingCounter)
-  {
-    waitingCounter--;
-    return;
-  }
-
-  // Serial.print("servoFrontPosNext end = ");
-  // Serial.println(servoFrontPosNext);
-
-  servoFrontEcho.write(servoFrontPosNext); // tell servo to go to position in variable 'servoFrontPosCurrent'
-  servoFrontPosCurrent = servoFrontPosNext;
-
-  if (currCycle % 2 == 0 && currCycle != 0)
-  {
-    // Serial.println("4et");
-    if (servoFrontPosCurrent == servoPosEnd)
-    {
-      currCycle--;
-      servoFrontPosNext = servoFrontPosCurrent - servoStep;
-      return;
-    }
-
-    servoFrontPosNext += servoStep;
-    return;
-  }
-
-  if (currCycle % 2 == 1)
-  {
-    // Serial.println("ne 4et");
-    if (servoFrontPosCurrent == servoPosStart)
-    {
-      // Serial.println("ne 4et last step");
-      currCycle--;
-      servoFrontPosNext = servoFrontPosCurrent + servoStep;
-      return;
-    }
-
-    servoFrontPosNext -= servoStep;
-    return;
-  }
-
-  if (currCycle == 0)
-  {
-    // Serial.println("last 4et");
-    if (servoFrontPosCurrent == servoPosMiddle)
-    {
-      currCycle = cyclesCount - 1;
-      waitingCounter = SERVO_WAITING_PERIOD_DEFAULT - 1;
-      servoFrontPosNext = -1;
-      return;
-    }
-
-    servoFrontPosNext += servoStep;
-    return;
-  }
-}
-
-void lookAroundBack()
-{
-  static const int cyclesCount = 3;
-  static const int servoPosMiddle = SERVO_BACK_POS_MIDDLE;
-  static const int servoStep = 10;
-  static const int servoPosStart = 0;
-  static const int servoPosEnd = servoPosMiddle * 2;
-  static int currCycle = cyclesCount - 1;
-  static int waitingCounter = 0;
-
-  if (waitingCounter)
-  {
-    waitingCounter--;
-    // Serial.print("waitingCounter = ");
-    // Serial.println(waitingCounter);
-    return;
-  }
-
-  // Serial.println(servoBackPosNext);
-  if (servoBackPosNext == -1)
-  {
-    if (servoBackPosCurrent + servoStep <= servoPosEnd)
-    {
-      servoBackPosNext = servoBackPosCurrent + servoStep;
-    }
-    else
-    {
-      servoBackPosNext = servoBackPosCurrent - servoStep;
-    }
-  }
-
-  // checkDistance();
-
-  if (waitingCounter)
-  {
-    waitingCounter--;
-    return;
-  }
-
-  // Serial.print("servoBackPosNext end = ");
-  // Serial.println(servoBackPosNext);
-
-  servoBackEcho.write(servoBackPosNext); // tell servo to go to position in variable 'servoBackPosCurrent'
-  servoBackPosCurrent = servoBackPosNext;
-
-  if (currCycle % 2 == 0 && currCycle != 0)
-  {
-    // Serial.println("4et");
-    if (servoBackPosCurrent == servoPosEnd)
-    {
-      currCycle--;
-      servoBackPosNext = servoBackPosCurrent - servoStep;
-      return;
-    }
-
-    servoBackPosNext += servoStep;
-    return;
-  }
-
-  if (currCycle % 2 == 1)
-  {
-    // Serial.println("ne 4et");
-    if (servoBackPosCurrent == servoPosStart)
-    {
-      // Serial.println("ne 4et last step");
-      currCycle--;
-      servoBackPosNext = servoBackPosCurrent + servoStep;
-      return;
-    }
-
-    servoBackPosNext -= servoStep;
-    return;
-  }
-
-  if (currCycle == 0)
-  {
-    // Serial.println("last 4et");
-    if (servoBackPosCurrent == servoPosMiddle)
-    {
-      currCycle = cyclesCount - 1;
-      waitingCounter = SERVO_WAITING_PERIOD_DEFAULT - 1;
-      servoBackPosNext = -1;
-      return;
-    }
-
-    servoBackPosNext += servoStep;
-    return;
-  }
-}
-
-void checkDistance()
-{
-  // Clears the SonicFrontTriggerPin
-  digitalWrite(SonicFrontTriggerPin, 0);
-  delayMicroseconds(2);
-  // Sets the SonicFrontTriggerPin on 1 state for 10 micro seconds
-  digitalWrite(SonicFrontTriggerPin, 1);
-  delayMicroseconds(10);
-  digitalWrite(SonicFrontTriggerPin, 0);
-  // Reads the SonicFrontEchorPin, returns the sound wave travel time in microseconds
-  sonicDuration = pulseIn(SonicFrontEchorPin, 1);
-
-  // convert the time into a sonicDistance
-  inches = microsecondsToInches(sonicDuration);
-  cm = microsecondsToCentimeters(sonicDuration);
-
-  Serial.print(servoFrontPosCurrent);
-  Serial.print("position, ");
-  Serial.print(inches);
-  Serial.print("in, ");
-  Serial.print(cm);
-  Serial.print("cm");
-  Serial.println();
-}
-
-long microsecondsToInches(long microseconds)
-{
-  // According to Parallax's datasheet for the PING))), there are 73.746
-  // microseconds per inch (i.e. sound travels at 1130 feet per second).
-  // This gives the sonicDistance travelled by the ping, outbound and return,
-  // so we divide by 2 to get the sonicDistance of the obstacle.
-  // See: http://www.parallax.com/dl/docs/prod/acc/28015-PING-v1.3.pdf
-  return microseconds / 74 / 2;
-}
-
-long microsecondsToCentimeters(long microseconds)
-{
-  // The speed of sound is 340 m/s or 29 microseconds per centimeter.
-  // The ping travels out and back, so to find the sonicDistance of the object we
-  // take half of the sonicDistance travelled.
-  return microseconds / 29 / 2;
 }
