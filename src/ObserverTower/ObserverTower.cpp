@@ -40,7 +40,7 @@ void ObserverTower::lookAround()
   // Serial.print("servoPosNext end = ");
   // Serial.println(servoPosNext);
 
-  ultrasonic
+  ultrasonicDistance = ultrasonic.read();
   servo.write(servoPosNext); // tell servo to go to position in variable 'servoPosCurrent'
   servoPosCurrent = servoPosNext;
 

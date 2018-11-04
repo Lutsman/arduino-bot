@@ -1,3 +1,8 @@
+struct towerData {
+    int servoData[30];
+    int ultrasonicData[30];
+};
+
 class ObserverTower
 {
   private:
@@ -14,6 +19,7 @@ class ObserverTower
     int cyclesCount;
     int currCycle; // = cyclesCount - 1;
     int waitingCounter;
+    int ultrasonicDistance;
 
   public:
     ObserverTower(
@@ -29,7 +35,8 @@ class ObserverTower
         cyclesCount(cyclesCountInit),
         currCycle(cyclesCountInit - 1),
         servoPosStart(0),
-        waitingCounter(0)
+        waitingCounter(0),
+        ultrasonicDistance(0)
         {
             servoPosEnd = servoPosMiddle * 2;
             servo.write(servoPosMiddle);
@@ -37,4 +44,5 @@ class ObserverTower
         }
 
     void lookAround();
+    int read();
 };
