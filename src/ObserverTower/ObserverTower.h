@@ -1,3 +1,10 @@
+#include <Arduino.h>
+#include <Servo.h>
+#include <Ultrasonic.h>
+
+#ifndef ObserverTower_h
+#define ObserverTower_h
+
 struct towerData {
     int servoData[30];
     int ultrasonicData[30];
@@ -6,20 +13,22 @@ struct towerData {
 class ObserverTower
 {
   private:
+    const int SERVO_WAITING_PERIOD_DEFAULT = 500;
+
     Servo servo;
     Ultrasonic ultrasonic;
+    towerData observeData;
 
-    const int SERVO_WAITING_PERIOD_DEFAULT = 500;
     int servoPosStart;
     int servoPosEnd;
     int servoPosMiddle;
     int servoPosNext;
     int servoPosCurrent;
     int servoStep;
+    int ultrasonicDistance;
     int cyclesCount;
     int currCycle; // = cyclesCount - 1;
     int waitingCounter;
-    int ultrasonicDistance;
 
   public:
     ObserverTower(
@@ -46,3 +55,5 @@ class ObserverTower
     void lookAround();
     int read();
 };
+
+#endif

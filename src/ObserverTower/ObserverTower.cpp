@@ -7,7 +7,6 @@
 
 void ObserverTower::lookAround()
 {
-
   if (waitingCounter)
   {
     waitingCounter--;
@@ -40,7 +39,9 @@ void ObserverTower::lookAround()
   // Serial.print("servoPosNext end = ");
   // Serial.println(servoPosNext);
 
-  ultrasonicDistance = ultrasonic.read();
+  // ultrasonicDistance = ultrasonic.read();
+  read();
+  Serial.println(servoPosNext);
   servo.write(servoPosNext); // tell servo to go to position in variable 'servoPosCurrent'
   servoPosCurrent = servoPosNext;
 
@@ -87,4 +88,17 @@ void ObserverTower::lookAround()
     servoPosNext += servoStep;
     return;
   }
+}
+
+int ObserverTower::read()
+{
+  ultrasonicDistance = ultrasonic.read();
+
+  Serial.print(servoPosCurrent);
+  Serial.print("position, ");
+  Serial.print(ultrasonicDistance);
+  Serial.print("cm");
+  Serial.println();
+
+  return ultrasonicDistance;
 }

@@ -1,6 +1,7 @@
 #include <SoftwareSerial.h>
 #include <Servo.h>
 #include <Ultrasonic.h>
+#include
 
 // esp rx-tx
 #define VirtualRX 2
@@ -47,6 +48,7 @@ Servo servoBackEcho;
 #define ServoBackPin 13
 
 // servo variables
+const int SERVO_WAITING_PERIOD_DEFAULT = 500;
 // front
 const int SERVO_FRONT_POS_MIDDLE = 80;
 int servoFrontPosCurrent = SERVO_FRONT_POS_MIDDLE;
@@ -277,7 +279,7 @@ void loop()
   {
     manageMovement();
     checkDistance();
-    // lookAround();
+    // lookAroundFront();
   }
 
   eraseCycles();
@@ -305,6 +307,9 @@ void setupServo()
 {
   servoFrontEcho.attach(ServoFrontPin);         // attaches the servo on pin 9 to the servo object
   servoFrontEcho.write(SERVO_FRONT_POS_MIDDLE); // tell servo to go to position in variable 'servoFrontPosCurrent'
+
+  servoBackEcho.attach(ServoBackPin);
+  servoBackEcho.write(SERVO_BACK_POS_MIDDLE);
 }
 
 // connecting
@@ -497,22 +502,21 @@ void _stop()
   digitalWrite(motor_L1, 0);
 }
 
-void lookAround(
-  Servo servo, 
-  Ultrasonic sonic, 
-  int servoPosMiddle, 
-  int servoPosStep, 
-  int servoPosCurrent, 
-  int servoPosNext
+void lookAroundFront(
+  // Servo servo, 
+  // Ultrasonic sonic, 
+  // int servoPosMiddle, 
+  // int servoPosStep, 
+  // int servoPosCurrent, 
+  // int servoPosNext
   )
 {
   static const int cyclesCount = 3;
-  // static const int servoPosMiddle = SERVO_FRONT_POS_MIDDLE;
+  static const int servoPosMiddle = SERVO_FRONT_POS_MIDDLE;
   static const int servoStep = 10;
   static const int servoPosStart = 0;
   static const int servoPosEnd = servoPosMiddle * 2;
   static int currCycle = cyclesCount - 1;
-  static const int WAITING_PERIOD_DEFAULT = 500;
   static int waitingCounter = 0;
 
   if (waitingCounter)
@@ -585,12 +589,102 @@ void lookAround(
     if (servoFrontPosCurrent == servoPosMiddle)
     {
       currCycle = cyclesCount - 1;
-      waitingCounter = WAITING_PERIOD_DEFAULT - 1;
+      waitingCounter = SERVO_WAITING_PERIOD_DEFAULT - 1;
       servoFrontPosNext = -1;
       return;
     }
 
     servoFrontPosNext += servoStep;
+    return;
+  }
+}
+
+void lookAroundBack()
+{
+  static const int cyclesCount = 3;
+  static const int servoPosMiddle = SERVO_BACK_POS_MIDDLE;
+  static const int servoStep = 10;
+  static const int servoPosStart = 0;
+  static const int servoPosEnd = servoPosMiddle * 2;
+  static int currCycle = cyclesCount - 1;
+  static int waitingCounter = 0;
+
+  if (waitingCounter)
+  {
+    waitingCounter--;
+    // Serial.print("waitingCounter = ");
+    // Serial.println(waitingCounter);
+    return;
+  }
+
+  // Serial.println(servoBackPosNext);
+  if (servoBackPosNext == -1)
+  {
+    if (servoBackPosCurrent + servoStep <= servoPosEnd)
+    {
+      servoBackPosNext = servoBackPosCurrent + servoStep;
+    }
+    else
+    {
+      servoBackPosNext = servoBackPosCurrent - servoStep;
+    }
+  }
+
+  // checkDistance();
+
+  if (waitingCounter)
+  {
+    waitingCounter--;
+    return;
+  }
+
+  // Serial.print("servoBackPosNext end = ");
+  // Serial.println(servoBackPosNext);
+
+  servoBackEcho.write(servoBackPosNext); // tell servo to go to position in variable 'servoBackPosCurrent'
+  servoBackPosCurrent = servoBackPosNext;
+
+  if (currCycle % 2 == 0 && currCycle != 0)
+  {
+    // Serial.println("4et");
+    if (servoBackPosCurrent == servoPosEnd)
+    {
+      currCycle--;
+      servoBackPosNext = servoBackPosCurrent - servoStep;
+      return;
+    }
+
+    servoBackPosNext += servoStep;
+    return;
+  }
+
+  if (currCycle % 2 == 1)
+  {
+    // Serial.println("ne 4et");
+    if (servoBackPosCurrent == servoPosStart)
+    {
+      // Serial.println("ne 4et last step");
+      currCycle--;
+      servoBackPosNext = servoBackPosCurrent + servoStep;
+      return;
+    }
+
+    servoBackPosNext -= servoStep;
+    return;
+  }
+
+  if (currCycle == 0)
+  {
+    // Serial.println("last 4et");
+    if (servoBackPosCurrent == servoPosMiddle)
+    {
+      currCycle = cyclesCount - 1;
+      waitingCounter = SERVO_WAITING_PERIOD_DEFAULT - 1;
+      servoBackPosNext = -1;
+      return;
+    }
+
+    servoBackPosNext += servoStep;
     return;
   }
 }
