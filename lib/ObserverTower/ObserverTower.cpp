@@ -26,6 +26,8 @@ ObserverTower::ObserverTower(
                            ultrasonicDistance(0)
 {
   servo.attach(servoPinInit);
+  servo.write(servoPosMiddle);
+  servoPosCurrent = servoPosMiddle;
 };
 
 void ObserverTower::lookAround()
@@ -118,7 +120,7 @@ towerData ObserverTower::read()
 }
 
 
-void ObserverTower::init() {
-  servo.write(servoPosMiddle);
-  servoPosCurrent = servoPosMiddle;
-}
+// void ObserverTower::init() {
+//   servo.write(servoPosMiddle);
+//   servoPosCurrent = servoPosMiddle;
+// }

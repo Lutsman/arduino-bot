@@ -1,5 +1,186 @@
 #include <SoftwareSerial.h>
-#include <ObserverTower.h>
+#include <Servo.h>
+#include <Ultrasonic.h>
+
+struct towerData
+{
+  int servoData[30];
+  uint8_t ultrasonicData[30];
+};
+
+class ObserverTower
+{
+private:
+  const int SERVO_WAITING_PERIOD_DEFAULT = 500;
+
+  Servo servo;
+  Ultrasonic ultrasonic;
+  towerData observeData;
+
+  uint8_t servoPin;
+  int servoPosStart;
+  int servoPosEnd;
+  int servoPosMiddle;
+  int servoPosNext;
+  int servoPosCurrent;
+  int servoStep;
+  int ultrasonicDistance;
+  int cyclesCount;
+  int currCycle;
+  int waitingCounter;
+  bool isInited;
+
+public:
+  ObserverTower(
+      uint8_t servoPinInit,
+      uint8_t ultrasonicTrigPinInit,
+      uint8_t ultrasonicEchoPinInit,
+      int servoPosMiddleInit,
+      int servoStepInit,
+      int cyclesCountInit);
+  // void init();
+  void lookAround();
+  uint8_t getDistance();
+  void logMeasurements();
+  towerData read();
+  void init();
+  void attach(uint8_t servoPinInit);
+};
+
+ObserverTower::ObserverTower(
+    uint8_t servoPinInit,
+    uint8_t ultrasonicTrigPinInit,
+    uint8_t ultrasonicEchoPinInit,
+    int servoPosMiddleInit,
+    int servoStepInit,
+    int cyclesCountInit) : ultrasonic(ultrasonicTrigPinInit, ultrasonicEchoPinInit),
+                           servoPosMiddle(servoPosMiddleInit),
+                           servoStep(servoStepInit),
+                           cyclesCount(cyclesCountInit),
+                           currCycle(cyclesCountInit - 1),
+                           servoPosStart(0),
+                           servoPosEnd(servoPosMiddleInit * 2),
+                           servoPosNext(-1),
+                           waitingCounter(0),
+                           ultrasonicDistance(0),
+                           servoPin(servoPinInit),
+                           isInited(false){};
+
+void ObserverTower::attach(uint8_t servoPinInit)
+{
+  servo.attach(servoPin);
+  servo.write(servoPosMiddle);
+  servoPosCurrent = servoPosMiddle;
+  delay(20);
+}
+
+void ObserverTower::init()
+{
+  if (isInited)
+    return;
+
+  isInited = true;
+  attach(servoPin);
+}
+
+void ObserverTower::lookAround()
+{
+  init();
+  logMeasurements();
+
+  // Serial.print('waiting counter');
+  // Serial.println(waitingCounter);
+  if (waitingCounter)
+  {
+    waitingCounter--;
+    return;
+  }
+
+  if (servoPosNext == -1)
+  {
+    if (servoPosCurrent + servoStep <= servoPosEnd)
+    {
+      servoPosNext = servoPosCurrent + servoStep;
+    }
+    else
+    {
+      servoPosNext = servoPosCurrent - servoStep;
+    }
+  }
+
+  // Serial.print('servo pos current');
+  Serial.println(servoPosCurrent);
+
+  // Serial.print('servo pos next');
+  Serial.println(servoPosNext);
+
+  servo.write(servoPosNext);
+  servoPosCurrent = servoPosNext;
+
+  // Serial.print('curr cycle');
+  // Serial.println(currCycle);
+
+  if (currCycle % 2 == 0 && currCycle != 0)
+  {
+    if (servoPosCurrent == servoPosEnd)
+    {
+      currCycle--;
+      servoPosNext = servoPosCurrent - servoStep;
+      return;
+    }
+
+    servoPosNext += servoStep;
+    return;
+  }
+
+  if (currCycle % 2 == 1)
+  {
+    if (servoPosCurrent == servoPosStart)
+    {
+      currCycle--;
+      servoPosNext = servoPosCurrent + servoStep;
+      return;
+    }
+
+    servoPosNext -= servoStep;
+    return;
+  }
+
+  if (currCycle == 0)
+  {
+    if (servoPosCurrent == servoPosMiddle)
+    {
+      currCycle = cyclesCount - 1;
+      waitingCounter = SERVO_WAITING_PERIOD_DEFAULT - 1;
+      servoPosNext = -1;
+      return;
+    }
+
+    servoPosNext += servoStep;
+    return;
+  }
+}
+
+uint8_t ObserverTower::getDistance()
+{
+  return ultrasonic.read();
+}
+
+void ObserverTower::logMeasurements()
+{
+  uint8_t distance = getDistance();
+  // Serial.println(servoPosCurrent);
+  // Serial.println(distance);
+  // Serial.println();
+  observeData.servoData[0] = servoPosCurrent;
+  observeData.ultrasonicData[0] = getDistance();
+}
+
+towerData ObserverTower::read()
+{
+  logMeasurements();
+  return observeData;
+}
 
 // esp rx-tx
 const uint8_t VirtualRX = 2;
@@ -43,6 +224,9 @@ const int SERVO_STEP = 10;
 const int CYCLES_COUNT = 3;
 
 //define servo pins
+Servo servoFront;
+Servo servoBack;
+
 const uint8_t ServoFrontPin = 4;
 const uint8_t ServoBackPin = 13;
 
@@ -54,7 +238,7 @@ const uint8_t UltrasonicFrontEchoPin = 'A1';
 const uint8_t UltrasonicBackTriggerPin = 12;
 const uint8_t UltrasonicBackEchoPin = 11;
 
-//towers
+// towers
 ObserverTower towerFront(
     ServoFrontPin,
     UltrasonicFrontTriggerPin,
@@ -257,12 +441,14 @@ void eraseCycles()
   cycle5m = false;
 }
 
+// bool even = true;
+
 void setup()
 {
   timersInit();
   setupSerial();
   setupChassi();
-  setupTowers();
+  
   Serial.println("Gate arduino start");
   delay(100);
 }
@@ -273,11 +459,36 @@ void loop()
 
   timersWorks();
 
-  if (cycle100ms)
+  if (cycle20ms)
   {
+    // if (even) {
+    //   servoFront.write(0);
+    //   servoBack.write(0);
+    //   even = false;
+    // } else {
+    //   servoFront.write(160);
+    //   servoBack.write(160);
+    //   even = true;
+    // }
     // Serial.print('Servo position');
-    dataToSerial(towerFront.read(), 'Front tower');
-    dataToSerial(towerBack.read(), 'Back tower');
+    // dataToSerial(towerFront.read(), 'Front tower');
+    // dataToSerial(towerBack.read(), 'Back tower');
+
+    towerData front = towerFront.read();
+    towerData back = towerBack.read();
+
+    // Serial.write('f');
+    // Serial.println('front');
+    // Serial.println('Servo position = ');
+    // Serial.println(front.servoData[0]);
+    // Serial.println('Distance = ');
+    // Serial.println(front.ultrasonicData[0]);
+
+    // Serial.println('back');
+    // Serial.println('Servo position = ');
+    // Serial.println(back.servoData[0]);
+    // Serial.println('Distance = ');
+    // Serial.println(back.ultrasonicData[0]);
 
     towerFront.lookAround();
     towerBack.lookAround();
@@ -304,7 +515,8 @@ void setupTowers() {
   towerBack.init();
 }
 
-void dataToSerial(towerData data, char name) {
+void dataToSerial(towerData data, char name)
+{
   Serial.write(name);
   Serial.print('Servo position = ');
   Serial.println(data.servoData[0]);

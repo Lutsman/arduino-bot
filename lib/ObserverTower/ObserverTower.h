@@ -38,7 +38,7 @@ class ObserverTower
         int servoPosMiddleInit,
         int servoStepInit,
         int cyclesCountInit);
-    void init();
+    // void init();
     void lookAround();
     int getDistance();
     void logMeasurements();
