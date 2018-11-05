@@ -1,43 +1,41 @@
+#if ARDUINO >= 100
+#include "Arduino.h"
+#else
+#include "WProgram.h"
+#endif
+
 #include <ObserverTower.h>
 
 // const int ObserverTower::servoPosEnd = servoPosMiddle * 2;
 
-void ObserverTower::init(
-    Servo servoInit,
-    Ultrasonic ultrasonicInit,
-    HardwareSerial &serialInit,
+ObserverTower::ObserverTower(
+    uint8_t servoPinInit,
+    uint8_t ultrasonicTrigPinInit,
+    uint8_t ultrasonicEchoPinInit,
     int servoPosMiddleInit,
     int servoStepInit,
-    int cyclesCountInit)
+    int cyclesCountInit) : ultrasonic(ultrasonicTrigPinInit, ultrasonicEchoPinInit),
+                           servoPosMiddle(servoPosMiddleInit),
+                           servoStep(servoStepInit),
+                           cyclesCount(cyclesCountInit),
+                           currCycle(cyclesCountInit - 1),
+                           servoPosStart(0),
+                           servoPosEnd(servoPosMiddleInit * 2),
+                           servoPosNext(-1),
+                           waitingCounter(0),
+                           ultrasonicDistance(0)
 {
-  servo = servoInit;
-  ultrasonic = ultrasonicInit;
-  serial = serialInit;
-  servoPosMiddle = servoPosMiddleInit;
-  servoStep = servoStepInit;
-  cyclesCount = cyclesCountInit;
-  currCycle = cyclesCountInit - 1;
-  servoPosStart = 0;
-  servoPosEnd = servoPosMiddle * 2;
-  waitingCounter = 0;
-  ultrasonicDistance = 0;
-
-  servo.write(servoPosMiddle);
-  servoPosCurrent = servoPosMiddle;
+  servo.attach(servoPinInit);
 };
 
 void ObserverTower::lookAround()
 {
-  serial.println('look around');
   if (waitingCounter)
   {
     waitingCounter--;
-    // serial.print("waitingCounter = ");
-    // serial.println(waitingCounter);
     return;
   }
 
-  // serial.println(servoPosNext);
   if (servoPosNext == -1)
   {
     if (servoPosCurrent + servoStep <= servoPosEnd)
@@ -50,7 +48,7 @@ void ObserverTower::lookAround()
     }
   }
 
-  // checkDistance();
+  logMeasurements();
 
   if (waitingCounter)
   {
@@ -58,18 +56,11 @@ void ObserverTower::lookAround()
     return;
   }
 
-  // serial.print("servoPosNext end = ");
-  // serial.println(servoPosNext);
-
-  // ultrasonicDistance = ultrasonic.read();
-  write();
-  // serial.println(servoPosNext);
-  servo.write(servoPosNext); // tell servo to go to position in variable 'servoPosCurrent'
+  servo.write(servoPosNext);
   servoPosCurrent = servoPosNext;
 
   if (currCycle % 2 == 0 && currCycle != 0)
   {
-    // serial.println("4et");
     if (servoPosCurrent == servoPosEnd)
     {
       currCycle--;
@@ -83,10 +74,8 @@ void ObserverTower::lookAround()
 
   if (currCycle % 2 == 1)
   {
-    // serial.println("ne 4et");
     if (servoPosCurrent == servoPosStart)
     {
-      // serial.println("ne 4et last step");
       currCycle--;
       servoPosNext = servoPosCurrent + servoStep;
       return;
@@ -98,7 +87,6 @@ void ObserverTower::lookAround()
 
   if (currCycle == 0)
   {
-    // serial.println("last 4et");
     if (servoPosCurrent == servoPosMiddle)
     {
       currCycle = cyclesCount - 1;
@@ -112,18 +100,25 @@ void ObserverTower::lookAround()
   }
 }
 
-int ObserverTower::read()
+int ObserverTower::getDistance()
 {
-  return ultrasonicDistance;
+  return ultrasonic.read();
 }
 
-void ObserverTower::write()
+void ObserverTower::logMeasurements()
 {
-  ultrasonicDistance = ultrasonic.read();
+  observeData.servoData[0] = servoPosCurrent;
+  observeData.ultrasonicData[0] = getDistance();
+}
 
-  serial.print(servoPosCurrent);
-  serial.print("position, ");
-  serial.print(ultrasonicDistance);
-  serial.print("cm");
-  serial.println();
-};
+towerData ObserverTower::read()
+{
+  logMeasurements();
+  return observeData;
+}
+
+
+void ObserverTower::init() {
+  servo.write(servoPosMiddle);
+  servoPosCurrent = servoPosMiddle;
+}

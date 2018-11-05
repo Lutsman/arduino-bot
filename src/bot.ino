@@ -1,11 +1,9 @@
 #include <SoftwareSerial.h>
-#include <Servo.h>
-#include <Ultrasonic.h>
 #include <ObserverTower.h>
 
 // esp rx-tx
-#define VirtualRX 2
-#define VirtualTX 3
+const uint8_t VirtualRX = 2;
+const uint8_t VirtualTX = 3;
 
 SoftwareSerial EspSerial(VirtualRX, VirtualTX);
 
@@ -44,28 +42,34 @@ const int SERVO_POS_MIDDLE_BACK = 80;
 const int SERVO_STEP = 10;
 const int CYCLES_COUNT = 3;
 
-Servo servoFront; // create servo object to control a servo
-Servo servoBack;
-// twelve servo objects can be created on most boards
-
 //define servo pins
-#define ServoFrontPin 4
-#define ServoBackPin 13
+const uint8_t ServoFrontPin = 4;
+const uint8_t ServoBackPin = 13;
 
 //define sonic pins
 // front
-#define UltrasonicFrontTriggerPin A0
-#define UltrasonicFrontEchoPin A1
+const uint8_t UltrasonicFrontTriggerPin = 'A0';
+const uint8_t UltrasonicFrontEchoPin = 'A1';
 //back
-#define UltrasonicBackTriggerPin 12
-#define UltrasonicBackEchoPin 11
-
-Ultrasonic ultrasonicFront(UltrasonicFrontTriggerPin, UltrasonicFrontEchoPin);
-Ultrasonic ultrasonicBack(UltrasonicBackTriggerPin, UltrasonicBackEchoPin);
+const uint8_t UltrasonicBackTriggerPin = 12;
+const uint8_t UltrasonicBackEchoPin = 11;
 
 //towers
-ObserverTower towerFront;
-ObserverTower towerBack;
+ObserverTower towerFront(
+    ServoFrontPin,
+    UltrasonicFrontTriggerPin,
+    UltrasonicFrontEchoPin,
+    SERVO_POS_MIDDLE_FRONT,
+    SERVO_STEP,
+    CYCLES_COUNT);
+
+ObserverTower towerBack(
+    ServoBackPin,
+    UltrasonicBackTriggerPin,
+    UltrasonicBackEchoPin,
+    SERVO_POS_MIDDLE_BACK,
+    SERVO_STEP,
+    CYCLES_COUNT);
 
 /*Module Timers
         part of Arduino Mega Server project
@@ -256,10 +260,9 @@ void eraseCycles()
 void setup()
 {
   timersInit();
-  setupServo();
-  setupObserverTowers();
   setupSerial();
   setupChassi();
+  setupTowers();
   Serial.println("Gate arduino start");
   delay(100);
 }
@@ -270,39 +273,18 @@ void loop()
 
   timersWorks();
 
-  if (cycle10ms)
+  if (cycle100ms)
   {
-    manageMovement();
+    // Serial.print('Servo position');
+    dataToSerial(towerFront.read(), 'Front tower');
+    dataToSerial(towerBack.read(), 'Back tower');
+
     towerFront.lookAround();
     towerBack.lookAround();
+    manageMovement();
   }
 
   eraseCycles();
-}
-
-void setupObserverTowers()
-{
-  towerFront.init(
-      servoFront,
-      ultrasonicFront,
-      Serial,
-      SERVO_POS_MIDDLE_FRONT,
-      SERVO_STEP,
-      CYCLES_COUNT);
-      
-  towerBack.init(
-      servoBack,
-      ultrasonicBack,
-      Serial,
-      SERVO_POS_MIDDLE_BACK,
-      SERVO_STEP,
-      CYCLES_COUNT);
-}
-
-void setupServo()
-{
-  servoFront.attach(ServoFrontPin);
-  servoBack.attach(ServoBackPin);
 }
 
 void setupChassi()
@@ -315,6 +297,19 @@ void setupSerial()
 {
   Serial.begin(9600);
   EspSerial.begin(9600);
+}
+
+void setupTowers() {
+  towerFront.init();
+  towerBack.init();
+}
+
+void dataToSerial(towerData data, char name) {
+  Serial.write(name);
+  Serial.print('Servo position = ');
+  Serial.println(data.servoData[0]);
+  Serial.print('Distance = ');
+  Serial.println(data.ultrasonicData[0]);
 }
 
 // connecting

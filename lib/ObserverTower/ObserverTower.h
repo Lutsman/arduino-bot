@@ -1,11 +1,11 @@
-#include <Arduino.h>
-#include <Servo.h>
-#include <Ultrasonic.h>
-
 #ifndef ObserverTower_h
 #define ObserverTower_h
 
-struct towerData {
+#include <Servo.h>
+#include <Ultrasonic.h>
+
+struct towerData
+{
     int servoData[30];
     int ultrasonicData[30];
 };
@@ -15,9 +15,8 @@ class ObserverTower
   private:
     const int SERVO_WAITING_PERIOD_DEFAULT = 500;
 
-    Servo * servo;
-    Ultrasonic * ultrasonic;
-    HardwareSerial * &serial;
+    Servo servo;
+    Ultrasonic ultrasonic;
     towerData observeData;
 
     int servoPosStart;
@@ -28,41 +27,22 @@ class ObserverTower
     int servoStep;
     int ultrasonicDistance;
     int cyclesCount;
-    int currCycle; // = cyclesCount - 1;
+    int currCycle;
     int waitingCounter;
 
   public:
-    // ObserverTower(
-    //     Servo servoInit,
-    //     Ultrasonic ultrasonicInit,
-    //     HardwareSerial &serialInit,
-    //     int servoPosMiddleInit,
-    //     int servoStepInit,
-    //     int cyclesCountInit):
-    //     servo(servoInit),
-    //     ultrasonic(ultrasonicInit),
-    //     serial(serialInit),
-    //     servoPosMiddle(servoPosMiddleInit),
-    //     servoStep(servoStepInit),
-    //     cyclesCount(cyclesCountInit),
-    //     currCycle(cyclesCountInit - 1),
-    //     servoPosStart(0),
-    //     waitingCounter(0),
-    //     ultrasonicDistance(0)
-    //     {
-    //         servoPosEnd = servoPosMiddle * 2;
-    //     }
-
-    void init(
-        Servo &servoInit,
-        Ultrasonic &ultrasonicInit,
-        HardwareSerial &serialInit,
+    ObserverTower(
+        uint8_t servoPinInit,
+        uint8_t ultrasonicTrigPinInit,
+        uint8_t ultrasonicEchoPinInit,
         int servoPosMiddleInit,
         int servoStepInit,
         int cyclesCountInit);
+    void init();
     void lookAround();
-    int read();
-    void write();
+    int getDistance();
+    void logMeasurements();
+    towerData read();
 };
 
 #endif
