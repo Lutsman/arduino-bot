@@ -2,14 +2,33 @@
 
 // const int ObserverTower::servoPosEnd = servoPosMiddle * 2;
 
-void ObserverTower::init()
+void ObserverTower::init(
+    Servo servoInit,
+    Ultrasonic ultrasonicInit,
+    HardwareSerial &serialInit,
+    int servoPosMiddleInit,
+    int servoStepInit,
+    int cyclesCountInit)
 {
+  servo = servoInit;
+  ultrasonic = ultrasonicInit;
+  serial = serialInit;
+  servoPosMiddle = servoPosMiddleInit;
+  servoStep = servoStepInit;
+  cyclesCount = cyclesCountInit;
+  currCycle = cyclesCountInit - 1;
+  servoPosStart = 0;
+  servoPosEnd = servoPosMiddle * 2;
+  waitingCounter = 0;
+  ultrasonicDistance = 0;
+
   servo.write(servoPosMiddle);
   servoPosCurrent = servoPosMiddle;
 };
 
 void ObserverTower::lookAround()
 {
+  serial.println('look around');
   if (waitingCounter)
   {
     waitingCounter--;

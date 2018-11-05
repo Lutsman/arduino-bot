@@ -64,23 +64,8 @@ Ultrasonic ultrasonicFront(UltrasonicFrontTriggerPin, UltrasonicFrontEchoPin);
 Ultrasonic ultrasonicBack(UltrasonicBackTriggerPin, UltrasonicBackEchoPin);
 
 //towers
-ObserverTower towerFront(
-  servoFront,
-  ultrasonicFront,
-  Serial,
-  SERVO_POS_MIDDLE_FRONT,
-  SERVO_STEP,
-  CYCLES_COUNT
-);
-
-ObserverTower towerBack(
-  servoBack,
-  ultrasonicBack,
-  Serial,
-  SERVO_POS_MIDDLE_BACK,
-  SERVO_STEP,
-  CYCLES_COUNT
-);
+ObserverTower towerFront;
+ObserverTower towerBack;
 
 /*Module Timers
         part of Arduino Mega Server project
@@ -295,12 +280,27 @@ void loop()
   eraseCycles();
 }
 
-void setupObserverTowers() {
-    towerFront.init();
-    towerBack.init();
+void setupObserverTowers()
+{
+  towerFront.init(
+      servoFront,
+      ultrasonicFront,
+      Serial,
+      SERVO_POS_MIDDLE_FRONT,
+      SERVO_STEP,
+      CYCLES_COUNT);
+      
+  towerBack.init(
+      servoBack,
+      ultrasonicBack,
+      Serial,
+      SERVO_POS_MIDDLE_BACK,
+      SERVO_STEP,
+      CYCLES_COUNT);
 }
 
-void setupServo() {
+void setupServo()
+{
   servoFront.attach(ServoFrontPin);
   servoBack.attach(ServoBackPin);
 }
