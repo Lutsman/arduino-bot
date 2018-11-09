@@ -6,8 +6,6 @@
 
 #include <ObserverTower.h>
 
-// const int ObserverTower::servoPosEnd = servoPosMiddle * 2;
-
 ObserverTower::ObserverTower(
     uint8_t servoPinInit,
     uint8_t ultrasonicTrigPinInit,
@@ -23,15 +21,32 @@ ObserverTower::ObserverTower(
                            servoPosEnd(servoPosMiddleInit * 2),
                            servoPosNext(-1),
                            waitingCounter(0),
-                           ultrasonicDistance(0)
+                           ultrasonicDistance(0),
+                           servoPin(servoPinInit),
+                           isInited(false){};
+
+void ObserverTower::attach(uint8_t servoPinInit)
 {
-  servo.attach(servoPinInit);
+  servo.attach(servoPin);
   servo.write(servoPosMiddle);
   servoPosCurrent = servoPosMiddle;
-};
+}
+
+void ObserverTower::init()
+{
+  if (isInited)
+    return;
+
+  isInited = true;
+  attach(servoPin);
+}
 
 void ObserverTower::lookAround()
 {
+  logMeasurements();
+
+  // Serial.print('waiting counter');
+  // Serial.println(waitingCounter);
   if (waitingCounter)
   {
     waitingCounter--;
@@ -50,16 +65,17 @@ void ObserverTower::lookAround()
     }
   }
 
-  logMeasurements();
+  // Serial.print('servo pos current');
+  // Serial.println(servoPosCurrent);
 
-  if (waitingCounter)
-  {
-    waitingCounter--;
-    return;
-  }
+  // Serial.print('servo pos next');
+  // Serial.println(servoPosNext);
 
   servo.write(servoPosNext);
   servoPosCurrent = servoPosNext;
+
+  // Serial.print('curr cycle');
+  // Serial.println(currCycle);
 
   if (currCycle % 2 == 0 && currCycle != 0)
   {
@@ -102,25 +118,23 @@ void ObserverTower::lookAround()
   }
 }
 
-int ObserverTower::getDistance()
+uint8_t ObserverTower::getDistance()
 {
   return ultrasonic.read();
 }
 
 void ObserverTower::logMeasurements()
 {
+  uint8_t distance = getDistance();
+  // Serial.println(servoPosCurrent);
+  // Serial.println(distance);
+  // Serial.println();
   observeData.servoData[0] = servoPosCurrent;
   observeData.ultrasonicData[0] = getDistance();
 }
 
 towerData ObserverTower::read()
 {
-  logMeasurements();
+  // logMeasurements();
   return observeData;
 }
-
-
-// void ObserverTower::init() {
-//   servo.write(servoPosMiddle);
-//   servoPosCurrent = servoPosMiddle;
-// }
